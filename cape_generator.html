@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Cape Generator Page</title>
+	<link rel="stylesheet" type="text/css" href="style.css">
+	<script type="text/javascript">
+
+		// Initialise global variables
+		// x and y coordinates of the points
+		let x_coords = [350, 260, 387.5, 545, 575, 575, 578, 572, 510.5, 563, 557, 561.5, 597.5, 597.5];
+		let y_coords = [275, 440, 644, 657.5, 657.5, 650, 420.5, 410, 402.5, 390.5, 378.5, 368, 612.5, 432.5];
+		// centre point coordinates are stored here as they will be used multiple times throughout the program
+		let centre = {x: 597.5, y: (18040/47)}
+		// coordinates of the collar pieces
+		let collar1_x = [425, 462.315, 462.315, 430.331];
+		let collar1_y = [80, 80, 50.68, 50.68];
+		let collar2_x = [425, 442.56, 442.56, 425];
+		let collar2_y = [130, 130, 100.68, 100.68];
+		// the original length of the cape
+		// this will be used to calculate the number to feed into reHem()
+		let ogHem = 65.025;
+		let ogCollar = 31.262;
+		// this boolean value stores whether the seam allowance was toggled or not
+		let seams = false;
+
+		// equations is a 2D array that holds the gradient and y-intercept of all the lines
+		// between the pattern points and the centre point. Each row represents a line.
+		// point 7 is the same as start because they are along the same line
+		// points 2 and 3 are not included because they form vertical lines
+		const equations = [
+			[121.099, 0.44],	//start
+			[483.272, -0.166],	//cp1
+			[1124.076, -1.239],	//cp2
+			[3498.455, -5.213],	//point 1
+			[7651.28, -12.163],	//cp3 
+			[7452.122, -11.83],	//cp4
+			[1507.436, -1.881],	//cp5
+			[997.029, -1.026],	//point 4
+			[512.052, -0.215],	//point 5
+			[499.347, -0.193],	//point 6
+			[305.196, 0.132],	//cp6
+			[121.099, 0.44]		// point 7
+			];
+
+
+		// function to scale the whole pattern
+		// used when the collar has to be adjusted
+		function adjust(dist) {
+			// calculate the radii (distance between pattern points and centre)
+			let radii = [];
+
+			for (let i=0; i<12; i++) {
+				let num = Math.sqrt((x_coords[i] - centre.x)**2 + (y_coords[i] - centre.y)**2);
+				radii.push(num);
+			}
+
+			// adds the new distance to the radii 
+			for(let i=0; i < radii.length; i++) {  radii[i] = radii[i] + dist;	}
+
+			let new_x = [];
+			// calculate the three values that will be given to the quadratic solver
+			for(i=0; i<12; i++) {
+				let cpt = equations[i][0];
+				let grd = equations[i][1];
+				let num = cpt - centre.y;
+
+				let a = (grd**2 + 1);
+				let b = 2*grd*num - 2*centre.x;
+				let c = (centre.x)**2 + num**2 - (radii[i])**2;
+
+				new_x.push(quadraticSolver(a, b, c));
+			}
+
+			//now we have the new x values, we need to work out the new y values
+			let new_y = [];
+			for(i=0; i < new_x.length; i++) {
+				let yIntercept = equations[i][0];
+				let gradient = equations[i][1];
+
+				let yNew = yIntercept + (gradient * new_x[i]);
+				new_y.push(yNew);
+			}
+			// add the values for points 2 and 3 to new_x
+			// those stay the same
+			new_x.push(x_coords[12]);
+			new_x.push(x_coords[13]);
+			// for new_y, we add the distance
+			new_y.push(y_coords[12] + dist);
+			new_y.push(y_coords[13] + dist);
+
+			x_coords = new_x;
+			y_coords = new_y;
+			
+			// now adjust the collar pieces
+			// this is much simpler, we simply elongate them according to the distance
+			// first we convert the distance to linear distance
+			let newDist = dist * (3.5532/2.086);
+			for (i=1; i < 3; i++) {
+				collar1_x[i] = collar1_x[i] + newDist;
+				collar2_x[i] = collar2_x[i] + newDist;
+			}
+
+			// now redraw the the pattern
+			draw();
+		}
+
+		// this function adjusts the hem of the cape
+		function reHem(dist) {
+			// works the same way as the other function, but only affects some of the points
+			// namely: points 1&2; start; control points 1&2&3&4
+
+			let radii = [];
+
+			for (let i=0; i<6; i++) {
+				let num = Math.sqrt((x_coords[i] - centre.x)**2 + (y_coords[i] - centre.y)**2);
+				radii.push(num);
+			}
+
+			// adds the new distance to the radii 
+			for(let i=0; i < radii.length; i++) {  radii[i] = radii[i] + dist;	}
+
+			let new_x = [];
+			// calculate the three values that will be given to the quadratic solver
+			for(i=0; i<6; i++) {
+				let cpt = equations[i][0];
+				let grd = equations[i][1];
+				let num = cpt - centre.y;
+
+				let a = (grd**2 + 1);
+				let b = 2*grd*num - 2*centre.x;
+				let c = (centre.x)**2 + num**2 - (radii[i])**2;
+
+				new_x.push(quadraticSolver(a, b, c));
+			}
+
+			//now we have the new x values, we need to work out the new y values
+			let new_y = [];
+			for(i=0; i < new_x.length; i++) {
+				let yIntercept = equations[i][0];
+				let gradient = equations[i][1];
+
+				let yNew = yIntercept + (gradient * new_x[i]);
+				new_y.push(yNew);
+			}
+
+			// now we add the values of the unchanged points
+			for (i=6; i<12; i++) {
+				new_x.push(x_coords[i]);
+				new_y.push(y_coords[i]);
+			}
+
+			// and finally points 2 & 3
+			// this time only point 2 changes
+			new_x.push(x_coords[12]);
+			new_x.push(x_coords[13]);
+			new_y.push(y_coords[12] + dist);
+			new_y.push(y_coords[13]);
+
+			x_coords = new_x;
+			y_coords = new_y;
+
+			// now redraw the the pattern
+			draw();
+		}
+
+		function quadraticSolver(a, b, c) {
+			// quadratic formula normally returns 2 values
+			// we only need one, the lower x value (the leftmost one)
+
+			var top =(-b) - Math.sqrt(b**2 - 4*a*c);
+			return top/(2*a);
+		}
+
+
+		// draw function copied from previous attempt
+		function draw() {
+		// Define canvas and context
+		const canvas = document.getElementById("canvas");
+		const ctx = canvas.getContext("2d");
+
+		// clear the canvas first, so there is no overlap
+		ctx.clearRect(0, 0, 709, 1000);
+
+		// draw the scale
+		for (let i=0; i<1000; i=i+35.532) {
+			ctx.beginPath();
+			ctx.moveTo(i, 0);
+			ctx.lineTo(i, 20);
+			ctx.moveTo(0, i);
+			ctx.lineTo(20, i);
+			ctx.stroke();
+		}
+
+		ctx.font = "11px Arial";
+		ctx.fillText("10 cm", 37, 20);
+
+		// label the pieces
+		ctx.fillText("Front Collar", 420, 40);
+		ctx.fillText("Back Collar", 420, 95);
+		ctx.fillText("Centre Back", 470, 325);
+
+
+		// drawing the cape
+		ctx.beginPath();
+		ctx.moveTo(x_coords[0], y_coords[0]);
+		ctx.bezierCurveTo(x_coords[1], y_coords[1], x_coords[2], y_coords[2], x_coords[3], y_coords[3]);
+		ctx.bezierCurveTo(x_coords[4], y_coords[4], x_coords[5], y_coords[5], x_coords[12], y_coords[12]);
+		ctx.lineTo(x_coords[13], y_coords[13]);
+		ctx.bezierCurveTo(x_coords[6], y_coords[6], x_coords[6], y_coords[6], x_coords[7], y_coords[7]);
+		ctx.lineTo(x_coords[8], y_coords[8]);
+		ctx.lineTo(x_coords[9], y_coords[9]);
+		ctx.bezierCurveTo(x_coords[10], y_coords[10], x_coords[10], y_coords[10], x_coords[11], y_coords[11]);
+		ctx.lineTo(x_coords[0], y_coords[0]);
+		ctx.stroke();
+
+		// drawing the collar
+		ctx.beginPath();
+		ctx.moveTo(collar1_x[0], collar1_y[0]);
+		ctx.lineTo(collar1_x[1], collar1_y[1]);
+		ctx.lineTo(collar1_x[2], collar1_y[2]);
+		ctx.lineTo(collar1_x[3], collar1_y[3]);
+		ctx.lineTo(collar1_x[0], collar1_y[0]);
+		ctx.stroke();
+
+		ctx.beginPath();
+		ctx.moveTo(collar2_x[0], collar2_y[0]);
+		ctx.lineTo(collar2_x[1], collar2_y[1]);
+		ctx.lineTo(collar2_x[2], collar2_y[2]);
+		ctx.lineTo(collar2_x[3], collar2_y[3]);
+		ctx.lineTo(collar2_x[0], collar2_y[0]);
+		ctx.stroke();
+
+		download.addEventListener("click", function() {
+  		var image = canvas.toDataURL("image/png");
+		window.location.href=image;
+
+		}, false);
+		}
+
+
+
+		function hemButton() {
+			let input = document.getElementById("hem_length");
+			let num = Number(input.value);
+			// if statement to make sure reHem is only executed if a value is given
+			if (Boolean(num) && num) {
+				// second if statement to make sure value is within a certain range
+				if (num < 163 && num > 14) {
+				let diff = num - ogHem;
+				diff = diff * 3.5532;
+				// the above constant is to convert from real distance to pixel distance
+				reHem(diff);
+				// now replace the ogLength value with the new length of the cape
+				ogHem = num;
+				}
+				else {window.alert("Sorry, Hem Length value is too big/too small");}
+			}
+
+			input = document.getElementById("collar");
+			num = Number(input.value);
+			if (Boolean(num)) {
+				if (num < 90 && num > 20){
+				diff = num - ogCollar;
+				diff = diff * 1.043;
+				// the above constant is to convert from real distance to pixel distance
+				adjust(diff);
+				ogCollar = num;
+				}
+				else {window.alert("Sorry, Collar value is too big/too small");}
+			}
+		}
+
+		function seamAllowance() {
+			if (seams) {
+				adjust(-5.3298);
+				// the number above comes from 1.5 (size of seam allowance)
+				// multiplied by the conversion number 3.5532
+				seams = false;
+			}
+
+			else {
+				adjust(5.3298);
+				seams = true;
+			}
+
+
+		}
+
+
+	</script>
+</head>
+<body onload="draw();">
+<h1>1899 Inspired Cape</h1>
+<a class="button" href="#instructions">Sewing Instructions</a><br>
+<p>Note that "Hem Length" corresponds to the length of the centre-back line, Collar is the circumference of the neck<br></p>
+<label>Hem Length(cm):</label>
+<input type="number" name="hem length" id = "hem_length"><br>
+
+<label>Collar(cm):</label>
+<input type="number" name="collar" id = "collar"><br>
+<button type="button" onclick="hemButton();">Create Pattern</button><br>
+<label class="allowance">1.5 cm Seam Allowance</label> <input type="checkbox" id="allowance" onclick="seamAllowance();"><br>
+<canvas id = "canvas" height = "1000" width = "709"></canvas><br><br>
+<button id="download">download</button>
+<a href="home_page.html" class="button">Home</a><br>
+<h2 id="instructions">Sewing Instructions:</h2>
+<p>
+	(These are not the original instructions that came with the pattern, those can be found <a href="http://marquise.de/en/1800/schnitte/s1899_3.txt">here</a>)<br>
+	For instructions on how to enlarge the pattern to full scale, look at the box patterns instructions <a href="http://marquise.de/en/themes/resize/resize.shtml">here</a>, the idents on the side of the pattern represent 10 cm.<br>
+</p>
+<ol>
+	<li>The pattern given shows one half of the cape. The diagonal straight line at the top is the centre-back, while the other is the centre-front. There is a dart on each shoulder, those should only be basted together until the cape has been tried on, and should not be cut beforehand, to ensure a good fit.</li>
+	<li>Cut out the cape from the fabric with the centre back along the fold. Do the same to the lining fabric and trim off the hem (the amount trimmed off should be equal to your seam allowance). Cut two of each collar piece from the cap fabric, fusible interfacing, and lining fabric</li>
+	<li>Next, baste the shoulder darts together and try on the cape. Do any adjustment that you feel is necessary so that the cape fits well. Then, stitch the darts together, cut and press.</li>
+	<li>Next is attaching the lining. The method described here is called bagging the lining. Lay the cape and lining right sides together, pin them together at the hem. Sew at your seam allowance, then trim it (make sure not to cut too close to the stitches).</li>
+	<li>Now pin them together at the neckline. The cape fabric should bunch up slightly, since there is more of it. Press the two together so that the cape fabric is pushed down to the hem.</li>
+	<li>Next, stitch the side seams and the neckline, leaving yourself a large enough opening that you can turn the cape inside out. Also remember to leave some allowance at the neckline to attach the collar. Trim the corners before turning the cape inside out</li>
+	<li>Now we move to the collar. Lay the fusible interfacing on the wrong side and press. Next, stitch the pieces together, do the same to the lining (remember to press the seams). Pin the collar and lining right sides together and stitch the top and side seams, leaving the bottom seam to turn it out & attach it to the cape. Remember to cut the corners before turning it out.</li>
+	<li>To finish is the handsewing. Slip stitch the openings left in the cape & collar. Pin the the collar to the cape and back stitch the two together.</li>
+</ol>
+<img src="1899_3.jpg" alt="Drawing of a cape">
+</body>
+</html>

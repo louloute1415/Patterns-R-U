@@ -1,0 +1,29 @@
+* {
+	font-family: sans-serif;
+	background-color: #aa3aaa;
+}
+
+canvas {
+	border: 1px solid black;
+}
+
+h1 {
+	color: lightyellow;
+	text-align: center;
+	font-size: 40px;
+}
+
+button, label.allowance {
+	background-color: lightyellow;
+	font-size: 20px;
+}
+
+a.button {
+	background-color: lightyellow;
+	color: #aa3aaa;
+	font-size: 20px;
+}
+
+div {
+	text-align: center;
+}
